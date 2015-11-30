@@ -17,10 +17,10 @@ def parse_args():
     parser = argparse.ArgumentParser(
             description='Download daily RIPE data for the provided '
                         'measurement ID number')
-    parser.add_argument('start_time', type=int, nargs="1",
+    parser.add_argument('start_time', type=int,
                     help="The start time to begin downloading data from, expressed "
                          "as an epoch timestamp")
-    parser.add_argument('end_time', type=int, nargs="1",
+    parser.add_argument('end_time', type=int, 
                     help="The end time to download data through, expressed "
                          "as an epoch timestamp")
     parser.add_argument('measurement', type=int, nargs="+",
@@ -122,7 +122,7 @@ class Measurement:
        for t1,t2 in days(self.measurement_summary['start_time'], stop):
            self._fetch_if_missing(t1, t2)
 
-    def fetch_missing_day(self, start, stop):
+    def _fetch_missing_day(self, start, stop):
         earliest_measurement = self.measurement_summary['start_time']
         latest_measurement = self.measurement_summary['stop_time']
 
