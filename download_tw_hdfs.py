@@ -109,11 +109,30 @@ class Measurement:
         url = self.RIPE_RESULTS_URL % {'measurement' : self.measurement_id,
                                        'start' : start, 
                                        'stop' : stop}
-        measurements = urllib2.urlopen(url)
-        with open(filename, "w") as f:
-            f.write(measurements.read())
+        
+        self._url_to_file(url, filename)
+        
         self._put_hdfs(filename, full_hdfs_path)
         os.remove(filename)
+
+    def _url_to_file(self, url, filename):
+        fail_count = 0
+        did_succeed = False
+        max_fail = 3
+
+        # try to download the measurement up to 3 times
+        while fail_count < max_fail and did_succeed == False:
+            try:
+                measurements = urllib2.urlopen(url)  # requests.get() might be better here
+                with open(filename, "w") as f:
+                    f.write(measurements.read())    # writing in chunks might be better, like this http://stackoverflow.com/questions/16694907/how-to-download-large-file-in-python-with-requests-py
+                did_succeed = True                  # if we get here, we succeeded, breaking while loop
+            except:
+                fail_count += 1                     # if we failed, increment count
+
+        # if we get here and haven't successfully downloaded the measurement, throw an error
+        if did_succeed == False:
+            raise RuntimeError('Tried and failed '+str(max_fail)+ 'times to download '+url)
             
     def fetch_all_missing(self):
        start = datetime.datetime.fromtimestamp(float(self.measurement_summary['start_time']))
