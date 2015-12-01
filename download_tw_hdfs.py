@@ -61,7 +61,7 @@ class Measurement:
     def __init__(self, measurement_id):
         self.measurement_id = measurement_id
         self.measurement_summary = self._get_measurement_summary()
-        pprint.pprint(self.measurement_summary)
+        #pprint.pprint(self.measurement_summary)
     
     def _get_measurement_summary(self):
         response = urllib2.urlopen(
@@ -91,18 +91,20 @@ class Measurement:
                     "Ripe.Atlas."+ \
                     self.measurement_summary['type']['name'] + "." + \
                     str(self.measurement_id)
-        print(filename)
 	
         full_hdfs_path = os.path.join(self.RIPE_DATA_ROOT_DIR,
                                      str(tstamp.year),
                                      "%02d" % tstamp.month,
                                      filename)
         if self._hdfs_file_exists(full_hdfs_path):
+           print(full_hdfs_path+" exists.  Skipping.") 
            return
 	
-
+        # if file exists
         if os.path.isfile(filename):
+            # put it to hdfs (this assumes the file is complete!)
             self._put_hdfs(filename, full_hdfs_path)
+            # and remove it from the normal filesystem
             os.remove(filename)
             return
 
@@ -116,6 +118,8 @@ class Measurement:
         os.remove(filename)
 
     def _url_to_file(self, url, filename):
+        print(filename)
+        print(datetime.datetime.now())
         fail_count = 0
         did_succeed = False
         max_fail = 3
