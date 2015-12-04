@@ -58,21 +58,7 @@ def _build_header(list_of_headings):
 
     return header
 
-class Measurement_File:
-
-    def __init__(self, filename):
-        self.filename = filename
-
-    def get_measurement_id_from_file(self):
-        with open(self.filename) as results:
-            try:
-                first_result = results.readlines()[0]
-            except:
-                return None
-            parsed_result = Result.get(first_result)
-            return parsed_result.measurement_id
-
-    def get_measurement_summary_from_file(self, measurement_id, summary_file):
+def get_measurement_summary_from_file(self, measurement_id, summary_file):
         summaries_dict = self._get_summaries_dict_from_file(summary_file)
         this_url = RIPE_SUMMARY_URL % {'measurement' : measurement_id}
 
@@ -87,6 +73,20 @@ class Measurement_File:
             self._add_summary_to_file(measurement_id, summary, summary_file)
         return summary
         #return json_response
+
+class Measurement_File:
+
+    def __init__(self, filename):
+        self.filename = filename
+
+    def get_measurement_id_from_file(self):
+        with open(self.filename) as results:
+            try:
+                first_result = results.readlines()[0]
+            except:
+                return None
+            parsed_result = Result.get(first_result)
+            return parsed_result.measurement_id
 
     def get_measurement_type_from_summary(self, measurement_summary):
         return measurement_summary['type']['name']
