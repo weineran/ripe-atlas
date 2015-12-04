@@ -1,9 +1,8 @@
-import os, json, pytz
-import datetime, calendar, pprint
 import argparse
 import snakebite
 import subprocess
 import Measurements
+from Measurements import Measurement, Ping_Measurement, Measurement_File
 from snakebite.client import AutoConfigClient
 client = AutoConfigClient()
 
@@ -39,9 +38,10 @@ if __name__ == "__main__":
     start_time = args.start_time
     end_time = args.end_time
     # for each day in the time window
-    for t1,t2 in days(start_time, end_time):
+    for t1,t2 in Measurements.days(start_time, end_time):
         # loop through measurement ids
         for measurement_id in args.measurement:
-            measurement = Measurement(measurement_id)
+            
+            measurement = Measurement(filename, measurement_id, measurement_summary, measurement_type)
             measurement._fetch_missing_day(t1, t2)
     
