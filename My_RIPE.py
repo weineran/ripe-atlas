@@ -225,7 +225,7 @@ class Measurement:
         except snakebite.errors.FileNotFoundException:
             return False
 
-class Measurement_Data(Measurement):
+class Measurement_Data(Measurement, object):
 
     # STATIC VARIABLES
     SEP = ','
@@ -243,6 +243,7 @@ class Measurement_Data(Measurement):
         f.write(header)
         f.close()
 
+    @staticmethod
     def _build_header(list_of_headings):
         header = ""
         i = 0
