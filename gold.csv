@@ -1,0 +1,2 @@
+Filename,Measurement_ID,Probe_ID,Timestamp,Target,Loss_rate,Packets_sent,Packets_received,RTT_avg
+C:\Users\Andrew\OneDrive\Documents\Northwestern\Research\code\ripe-atlas\data\2015-11-01-00-00_Ripe.Atlas.ping.1001,1001,10008,1446336028,k.root-servers.net,0.0,3,3,157.761
