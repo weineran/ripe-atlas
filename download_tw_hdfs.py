@@ -1,4 +1,4 @@
-import urllib2, os, json, pytz
+import os, json, pytz
 import datetime, calendar, pprint
 import argparse
 import snakebite

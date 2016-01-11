@@ -1,12 +1,9 @@
 import argparse
-import snakebite
 import subprocess
-import Measurements
-from Measurements import Measurement, Ping_Measurement, Measurement_File
-from snakebite.client import AutoConfigClient
-client = AutoConfigClient()
+import My_RIPE
+from My_RIPE import Measurement, Ping_Data, Measurement_Data
 
-# download_time_window.py
+# download_tw_hdfs2.py
 # modified version of /home/zsb739/code/libs/ripe-measurement-downloader/download.py
 # The purpose of this script is to download small data files just to see what
 # the data looks like and for testing.
@@ -26,6 +23,8 @@ def parse_args():
     parser.add_argument('measurement', type=int, nargs="+",
                     help="The integer identification number for the desired "
                          "measurement")
+    parser.add_argument('--summaries', type=str,
+                    help="A local file containing dictionary of measurment_id : measurement_summary.  Faster than requesting from web.  If omitted, summaries are obtained from web.")
     return parser.parse_args()
 
 
@@ -37,11 +36,20 @@ if __name__ == "__main__":
     # get time stamps
     start_time = args.start_time
     end_time = args.end_time
-    # for each day in the time window
-    for t1,t2 in Measurements.days(start_time, end_time):
+    summaries_file = args.summaries
+
+    if (end_time - start_time) > 60*60*24:
+        # if time window is longer than 1 day
+        # for each day in the time window
+        for t1,t2 in My_RIPE.days(start_time, end_time):
+            # loop through measurement ids
+            for measurement_id in args.measurement:
+                measurement = Measurement(measurement_id, summaries_file)
+                measurement._fetch_to_local(t1, t2)
+    else:
+        # if time windows is less than 1 day
         # loop through measurement ids
         for measurement_id in args.measurement:
-            
-            measurement = Measurement(filename, measurement_id, measurement_summary, measurement_type)
-            measurement._fetch_missing_day(t1, t2)
-    
+            measurement = Measurement(measurement_id, summaries_file)
+            measurement._fetch_to_local(start_time, end_time)
+
