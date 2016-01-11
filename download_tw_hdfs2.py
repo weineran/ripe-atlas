@@ -6,12 +6,7 @@ from Measurements import Measurement, Ping_Measurement, Measurement_File
 from snakebite.client import AutoConfigClient
 client = AutoConfigClient()
 
-# download_time_window.py
 # modified version of /home/zsb739/code/libs/ripe-measurement-downloader/download.py
-# The purpose of this script is to download small data files just to see what
-# the data looks like and for testing.
-# Specify an epoch  start_time_stamp and end_time_stamp, preferably no more than a couple
-# hours apart (1 hour is 3600 seconds)
 
 def parse_args():
     parser = argparse.ArgumentParser(
