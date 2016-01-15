@@ -2,6 +2,10 @@ from ripe.atlas.sagan import PingResult, DnsResult, TracerouteResult, SslResult,
 import pprint, json, os, pytz
 import datetime, calendar
 import sys
+import snakebite
+import subprocess
+from snakebite.client import AutoConfigClient
+client = AutoConfigClient()
 
 try:
     import urllib.request as urllib2
@@ -44,6 +48,7 @@ class Measurement:
     RIPE_SUMMARY_URL = "https://atlas.ripe.net/api/v1/measurement/%(measurement)d"
     RIPE_RESULTS_URL = "https://atlas.ripe.net/api/v1/measurement/%(measurement)d"\
                        "/result/?start=%(start)d&stop=%(stop)d&format=txt"
+    RIPE_DATA_ROOT_DIR = "/data/ripe-atlas"
 
     # constructor
     def __init__(self, measurement_id, summaries_file = None):
@@ -111,9 +116,10 @@ class Measurement:
     def _get_measurement_type(self):
         return self.summary['type']['name']
 
-    def _get_dict_from_file(self, summaries_file):
+    @staticmethod
+    def _get_dict_from_file(summaries_file):
         try:
-            summaries_dict = self._get_dict_from_nonempty_file(summaries_file)
+            summaries_dict = Measurement._get_dict_from_nonempty_file(summaries_file)
         except:
             # summaries file doesn't exist
             print(summaries_file + " doesn't exist or is empty.  Using empty dictionary.")
@@ -121,7 +127,8 @@ class Measurement:
 
         return summaries_dict
 
-    def _get_dict_from_nonempty_file(self, summaries_file):
+    @staticmethod
+    def _get_dict_from_nonempty_file(summaries_file):
         with open(summaries_file, 'r') as f:
             summaries_dict = json.load(f)
         return summaries_dict
@@ -154,15 +161,25 @@ class Measurement:
             # assume it's an incomplete download and remove it
             os.remove(filename)
 
+        #print(start)
+        #print(type(start))
+        #print(stop)
+        #print(type(stop))
+
         url = self.RIPE_RESULTS_URL % {'measurement' : self.measurement_id,
-                                       'start' : start, 
-                                       'stop' : stop}
+                                       'start' : int(start), 
+                                       'stop' : int(stop)}
         
         self._download_url_to_file(url, filename)       # download the file from url to the local filesystem
         full_local_path = os.path.join(os.getcwd(), filename)
         return full_local_path
 
     def _fetch_to_hdfs_if_missing(self, start, stop):
+        tstamp = datetime.datetime.fromtimestamp(start, tz=pytz.UTC)
+        filename = tstamp.strftime('%Y-%m-%d') + "_" + \
+                    "Ripe.Atlas."+ \
+                    self.summary['type']['name'] + "." + \
+                    str(self.measurement_id)
         full_hdfs_path = os.path.join(self.RIPE_DATA_ROOT_DIR,
                                      str(tstamp.year),
                                      "%02d" % tstamp.month,
@@ -184,7 +201,7 @@ class Measurement:
 
 
     def _download_url_to_file(self, url, filename):
-        print(filename)
+        print("Requesting "+filename+" from "+url)
         print(datetime.datetime.now())
         fail_count = 0
         did_succeed = False
@@ -197,8 +214,8 @@ class Measurement:
                 measurement_content = measurements.read().decode('utf-8')
             except Exception as inst:
                 fail_count += 1                     # if we failed, increment count
-                print("Fail #"+str(fail_count) + ": sys.exc_info()[0]: "+sys.exc_info()[0])
-                print("exception type: "+type(inst))
+                print("Fail #"+str(fail_count) + ": sys.exc_info()[0]: "+str(sys.exc_info()[0]))
+                print("exception type: "+str(type(inst)))
             else:
                 with open(filename, "w") as f:
                     f.write(measurement_content)    # writing in chunks might be better, like this http://stackoverflow.com/questions/16694907/how-to-download-large-file-in-python-with-requests-py
@@ -256,6 +273,261 @@ class Measurement_Data(Measurement, object):
                 header += Measurement_Data.NL
         return header
 
+    @staticmethod
+    def write_dict_to_CSV(list_of_headings, csv_file, output_file):
+        results_dict = Measurement._get_dict_from_file(output_file)
+
+        with open(csv_file, "w") as f:
+            # headers
+            f.write(Measurement_Data._build_header(list_of_headings))
+
+            for key in results_dict:
+                f.write(str(key) + ',' + str(results_dict[key]['ping']) + ',' + str(results_dict[key]['dns']) + ',' + str(results_dict[key]['traceroute']) + ',')
+                # num_targets
+                f.write(str(len(results_dict[key]['targets'])) + ',')
+                # targets_list
+                for target in results_dict[key]['targets']:
+                    f.write(target + ';')
+                f.write(',')
+                # num_origins
+                f.write(str(len(results_dict[key]['origins'])) + ',')
+                # origins list
+                for origin in results_dict[key]['origins']:
+                    f.write(origin + ';')
+                f.write('\n')
+
+    # Deprecated
+    @staticmethod
+    def write_probe_target_dict_to_CSV(list_of_headings, csv_file, output_file):
+        results_dict = Measurement._get_dict_from_file(output_file)
+
+        with open(csv_file, "w") as f:
+            # headers
+            f.write(Measurement_Data._build_header(list_of_headings))
+            
+            for key in results_dict:
+                f.write(str(key) + ',' + str(results_dict[key][list_of_headings[1]]) + ',' + str(results_dict[key][list_of_headings[2]]) + ',' + 
+                        str(results_dict[key][list_of_headings[3]]) + ',' + str(results_dict[key][list_of_headings[4]]) + ',' + 
+                        str(results_dict[key][list_of_headings[5]]) + ',')
+                
+                # num_origins
+                f.write(str(len(results_dict[key]['origins'])) + ',')
+                # origins list
+                for origin in results_dict[key]['origins']:
+                    f.write(origin + ';')
+                f.write('\n')
+
+    @staticmethod
+    def write_compound_key_dict_to_CSV(list_of_headings, csv_file, output_file):
+        results_dict = Measurement._get_dict_from_file(output_file)
+
+        with open(csv_file, "w") as f:
+            # headers
+            f.write(Measurement_Data._build_header(list_of_headings))
+            
+            for key in results_dict:
+                f.write(str(key) + ',' + str(results_dict[key][list_of_headings[1]]) + ',' + str(results_dict[key][list_of_headings[2]]) + ',' + 
+                        str(results_dict[key][list_of_headings[3]]) + ',' + str(results_dict[key][list_of_headings[4]]) + ',' + 
+                        str(results_dict[key][list_of_headings[5]]) + ',')
+                
+                # num_origins
+                f.write(str(len(results_dict[key]['origins'])) + ',')
+                # origins list
+                for origin in results_dict[key]['origins']:
+                    f.write(origin + ';')
+                f.write('\n')
+
+    @staticmethod
+    def write_compound_key_dict_to_list(json_dict_file, time_diff_list):
+        results_dict = Measurement._get_dict_from_file(json_dict_file)
+        time_list = []
+
+        # loop through each timestamp in the json dict
+        #i = 0
+        for key in results_dict:
+            timestamp = results_dict[key]['timestamp']
+
+            # get the number of measurements taken at that timestamp
+            num_measurements = results_dict[key]['ping'] + results_dict[key]['dns'] + results_dict[key]['traceroute']
+
+            # add that timestamp to the result_list one time for each measurement taken at that timestamp
+            for j in range(0, num_measurements):
+                time_list.append(timestamp)
+                #i += 1
+
+        time_list.sort()
+
+        prev_time = time_list[0]
+        for this_time in time_list[1:]:
+            time_diff = this_time - prev_time
+            time_diff_list.append(time_diff)
+            prev_time = this_time
+
+        print("len of time_list: " + str(len(time_list)))
+        print("len of time_diff_list: " + str(len(time_diff_list)))
+        print("time_diff_list should be 1 shorter than time_list")
+
+        #return time_diff_list
+
+
+    @staticmethod
+    def calc_results_summary(output_file):
+        results_summary_dict = {"ping" : {"avg" : None, "max" : None, "min" : None, "total" : 0}, 
+                                "dns" : {"avg" : None, "max" : None, "min" : None, "total" : 0},
+                                "traceroute" : {"avg" : None, "max" : None, "min" : None, "total" : 0},
+                                "num_keys" : 0}
+
+        results_dict = Measurement._get_dict_from_file(output_file)
+
+        for key in results_dict:
+            results_summary_dict["num_keys"] += 1
+            for inner_key in results_dict[key]:
+                # inner_key is ping, traceroute, dns, targets, origins
+                this_val = results_dict[key][inner_key]
+                curr_max = results_summary_dict[inner_key]["max"]
+                curr_min = results_summary_dict[inner_key]["min"]
+                if curr_max is None or this_val > curr_max:
+                    results_summary_dict[inner_key]["max"] = this_val
+                if curr_min is None or this_val < curr_min:
+                    results_summary_dict[inner_key]["min"] = this_val
+                results_summary_dict[inner_key]["total"] += this_val
+
+        num_keys = results_summary_dict["num_keys"]
+        if num_keys != 0:
+            results_summary_dict["ping"]["avg"] = results_summary_dict["ping"]["total"] / num_keys
+            results_summary_dict["dns"]["avg"] = results_summary_dict["dns"]["total"] / num_keys
+            results_summary_dict["traceroute"]["avg"] = results_summary_dict["traceroute"]["total"] / num_keys
+
+        return results_summary_dict
+
+    def add_probe_and_target_results(self, results_dict):
+        with open(self.filename) as results:
+            for result in results.readlines():
+                parsed_result = Result.get(result)
+                probe_id = self._get_attr("probe_id", parsed_result)
+                target = self._get_attr("target", parsed_result)
+                key = str(probe_id) + ' ; ' + target
+                origin = parsed_result.origin
+                try:
+                    # see if this key exists yet
+                    inner_dict = results_dict[str(key)]
+                except KeyError:
+                    # initialize all types to 0
+                    results_dict[str(key)] = {"probe_id" : probe_id, "target" : target, "ping" : 0, "dns" : 0, "traceroute" : 0, "origins" : {}}
+                    # increment the appropriate type (ping, dns, traceroute)
+                    results_dict[str(key)][self.type] += 1
+                    results_dict[str(key)]["origins"][origin] = 1
+                else:
+                    # already initialized, increment
+                    results_dict[str(key)][self.type] += 1
+                    # origins
+                    try:
+                        results_dict[str(key)]["origins"][origin] += 1
+                    except KeyError:
+                        results_dict[str(key)]["origins"][origin] = 1
+
+
+    def add_compound_key_results(self, probe_id, results_dict, key_part1_str, key_part2_str):
+        '''
+        key_part1 - the first part of the key (e.g. "probe_id")
+        key_part2 - the second part of the key (e.g. "target")
+        So the key would be "probe_id ; target"
+        '''
+        with open(self.filename) as results:
+            for result in results.readlines():
+
+                # First determine whether to skip this result
+                if probe_id != None:
+                    this_probe_id = json.loads(result)["prb_id"]
+                    if this_probe_id != probe_id:
+                        continue    # skip to next result
+
+                parsed_result = Result.get(result)
+                val_part1 = self._get_attr(key_part1_str, parsed_result)
+                val_part2 = self._get_attr(key_part2_str, parsed_result)
+                key = str(val_part1) + ' ; ' + str(val_part2)
+                origin = parsed_result.origin
+                try:
+                    # see if this key exists yet
+                    inner_dict = results_dict[str(key)]
+                except KeyError:
+                    # initialize all types to 0
+                    results_dict[str(key)] = {key_part1_str : val_part1, key_part2_str : val_part2, "ping" : 0, "dns" : 0, "traceroute" : 0, "origins" : {}}
+                    # increment the appropriate type (ping, dns, traceroute)
+                    results_dict[str(key)][self.type] += 1
+                    results_dict[str(key)]["origins"][origin] = 1
+                else:
+                    # already initialized, increment
+                    results_dict[str(key)][self.type] += 1
+                    # origins
+                    try:
+                        results_dict[str(key)]["origins"][origin] += 1
+                    except KeyError:
+                        results_dict[str(key)]["origins"][origin] = 1
+
+
+    def add_to_results_dict(self, key_name, results_dict):
+        with open(self.filename) as results:
+            for result in results.readlines():
+                parsed_result = Result.get(result)
+                key = self._get_attr(key_name, parsed_result)
+                origin = parsed_result.origin
+                target = self._get_attr("target", parsed_result)
+                try:
+                    # see if this key exists yet
+                    inner_dict = results_dict[str(key)]
+                except KeyError:
+                    # initialize all types to 0
+                    results_dict[str(key)] = {"ping" : 0, "dns" : 0, "traceroute" : 0, "origins" : {}, "targets" : {}}
+                    # increment the appropriate type
+                    results_dict[str(key)][self.type] += 1
+                    results_dict[str(key)]["origins"][origin] = 1
+                    results_dict[str(key)]["targets"][target] = 1
+                else:
+                    # already initialized, increment
+                    results_dict[str(key)][self.type] += 1
+                    # origins
+                    try:
+                        results_dict[str(key)]["origins"][origin] += 1
+                    except KeyError:
+                        results_dict[str(key)]["origins"][origin] = 1
+                    # targets
+                    try:
+                        results_dict[str(key)]["targets"][target] += 1
+                    except KeyError:
+                        results_dict[str(key)]["targets"][target] = 1
+
+
+    def _get_attr(self, this_attr, parsed_result):
+        this_attr = this_attr.lower()
+
+        if this_attr == "filename":
+            return self.filename
+        elif this_attr == "measurement_id":
+            return self.measurement_id
+        elif this_attr == "probe_id":
+            return parsed_result.probe_id
+        elif this_attr == "timestamp":
+            return parsed_result.created_timestamp
+        elif this_attr == "target":
+            return self._get_target()
+        elif this_attr == "loss_rate":
+            try:
+                loss_rate = ((parsed_result.packets_sent - parsed_result.packets_received) / parsed_result.packets_sent)
+            except ZeroDivisionError:
+                loss_rate = None
+            return loss_rate
+        elif this_attr == "packets_sent":
+            return parsed_result.packets_sent
+        elif this_attr == "packets_received":
+            return parsed_result.packets_received
+        elif this_attr == "rtt_avg":
+            return parsed_result.rtt_average
+        else:
+            raise RuntimeError(this_attr + " is not handled in _get_attr() function.")
+
+    def _get_target(self):
+        return self.summary['dst_name']
 
     def print_nicely(self, limit):
         with open(self.filename) as results:
@@ -547,35 +819,6 @@ class Ping_Data(Measurement_Data):
                 list_of_data.append(data_row)
 
         return list_of_data
-
-    def _get_attr(self, this_attr, parsed_result):
-        if this_attr is "Filename":
-            return self.filename
-        elif this_attr is "Measurement_ID":
-            return self.measurement_id
-        elif this_attr is "Probe_ID":
-            return parsed_result.probe_id
-        elif this_attr is "Timestamp":
-            return parsed_result.created_timestamp
-        elif this_attr is "Target":
-            return self._get_target()
-        elif this_attr is "Loss_rate":
-            try:
-                loss_rate = ((parsed_result.packets_sent - parsed_result.packets_received) / parsed_result.packets_sent)
-            except ZeroDivisionError:
-                loss_rate = None
-            return loss_rate
-        elif this_attr is "Packets_sent":
-            return parsed_result.packets_sent
-        elif this_attr is "Packets_received":
-            return parsed_result.packets_received
-        elif this_attr is "RTT_avg":
-            return parsed_result.rtt_average
-        else:
-            raise RuntimeError(this_attr + " is not handled in _get_attr() function.")
-
-    def _get_target(self):
-        return self.summary['dst_name']
 
     def _write_data_rows(self, csv_file, filename, measurement_id, list_of_data):
         with open(csv_file, 'a') as f:

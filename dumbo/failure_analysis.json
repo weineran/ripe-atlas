@@ -1,0 +1,12 @@
+{
+ "project" : "broadband_reliability",
+ "jobname" : "failure_2015_01_test",
+ "jobs" : [
+           {"script" : "src/probe_mapper.py", "inputs" : ["/user/awp066/test/*"],
+            "output" : "probes_to_measurements"
+           },
+           {"script" : "src/timestamp_mapper.py", "inputs" : ["probes_to_measurements"],
+            "output" : "probe_timestamps_to_failure"
+           }
+          ]
+ }

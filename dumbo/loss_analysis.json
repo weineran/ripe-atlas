@@ -1,0 +1,32 @@
+{
+ "project" : "broadband_reliability",
+ "jobname" : "loss_2011-2013",
+ "jobs" : [
+           {"script" : "src/load_udplatency.py", "inputs" : ["/data/fcc/201[1-3]/*/*udplatency*.lzo"],
+            "output" : "udplatency"
+           },
+           {"script" : "src/calculate_hourly_loss.py", "inputs" : ["udplatency"],
+            "output" : "udplatency_hourly_loss_count"
+           },
+           {"script" : "src/load_unit_info.py", "inputs" : ["/data/fcc/unit_info.201*.json"],
+            "output" : "unit_info"
+           },
+           {"script" : "src/calc_hourly_loss.py", "inputs" : ["udplatency"],
+            "output" : "udplatency_hourly"
+           },
+           {"script" : "src/join_unitinfo.py", "inputs" : ["udplatency_hourly", "unit_info"],
+            "output" : "udplatency_hourly_with_unitinfo"
+           },
+           {"script" : "src/calculate_hourly_loss_by_isp.py", "inputs" : ["udplatency_hourly_with_unitinfo"],
+            "output" : "udplatency_hourly_loss_by_isp_count"
+           },
+           {"script" : "src/calculate_hourly_loss_by_isp_peak.py", 
+            "inputs" : ["udplatency_hourly_with_unitinfo"],
+            "output" : "udplatency_hourly_loss_by_isp_peak_count"
+           },
+           {"script" : "src/multihoming_experiment.py",
+            "inputs" : ["udplatency_hourly_withUnitinfo"],
+            "output" : ["udplatency_multihoming"]
+           }
+          ]
+ }
