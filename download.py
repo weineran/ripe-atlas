@@ -107,7 +107,7 @@ class Measurement:
     def fetch_all_missing(self):
         #start = datetime.datetime.fromtimestamp(float(self.measurement_summary['start_time']))
         start = self.measurement_summary['start_time']
-	stop = self.measurement_summary['stop_time']
+        stop = self.measurement_summary['stop_time']
         status = self.measurement_summary['status']
         self._fetch_if_missing(start, stop)
 	#test_start = 1447000000 # sun 11/8/15
