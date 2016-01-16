@@ -8,8 +8,5 @@
            {"script" : "src/timestamp_reducer.py", "inputs" : ["probe_timestamps_to_failure"],
             "output" : "probe_timestamp_to_counts"
            }
-           {"script" : "src/timestamp_reducer.py", "inputs" : ["probe_timestamps_to_failure"],
-            "output" : "probe_timestamps_reduced"
-           }
           ]
  }
