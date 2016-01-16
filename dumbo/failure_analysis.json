@@ -8,5 +8,8 @@
            {"script" : "src/timestamp_mapper.py", "inputs" : ["probes_to_measurements"],
             "output" : "probe_timestamps_to_failure"
            }
+           {"script" : "src/timestamp_reducer.py", "inputs" : ["probe_timestamps_to_failure"],
+            "output" : "probe_timestamps_reduced"
+           }
           ]
  }
