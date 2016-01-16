@@ -4,12 +4,11 @@ from aqualab.dumbo.util import *
 
 import json
 import aquaflows.lib.parsers
-import ripe.atlas.sagan
 
 def detect_ping_failure(value):
     ''' 
     This function takes a dictionary "value" and mutates it.
-    It adds 'is_failure', 'packets_sent', and 'loss_rate' to the dictionary
+    It adds 'packets_lost', and 'loss_rate' to the dictionary
     '''
 
     value['is_failure'] = None
@@ -27,20 +26,45 @@ def detect_ping_failure(value):
             value['is_failure'] = True
         else:
             value['is_failure'] = False
-   
+
+def detect_dns_failure(value):
+    ''' 
+    This function takes a dictionary "value" and mutates it.
+    It adds ... to the dictionary
+    '''
+    pass
+  
+def detect_traceroute_failure(value):
+    ''' 
+    This function takes a dictionary "value" and mutates it.
+    It adds ... to the dictionary
+    '''
+    pass
 
 class TimestampMapper:
-    #@aquaflows.lib.parsers.Json
+    @aquaflows.lib.parsers.Json # this applies Json preparser to key, value args
     def __call__(self, key, value):
-        while type(value) == str or type(value) == unicode:
-            value = json.loads(value)
-        detect_ping_failure(value)   # mutates the dictionary
-        #value['is_failure'] = None
-
+        #while type(value) == str or type(value) == unicode:
+        #    value = json.loads(value)
         try:
-            yield (key, value['timestamp']), (value['is_failure'], value)
+            key = value['prb_id']
         except KeyError:
-            yield (key, 'NO_TIMESTAMP'), (value['is_failure'], value)
+            key = 'NO_PROBE_ID'
+
+        measurement_type = value['type']
+        value['is_failure'] = None
+
+        if measurement_type == 'ping':
+            detect_ping_failure(value)   # mutates the dictionary
+        elif measurement_type == 'dns':
+            detect_dns_failure(value)    # mutates the dictionary
+        elif measurement_type == 'traceroute':
+            detect_traceroute_failure(value)  # mutates the dictionary
+        
+        try:
+            yield (key, value['timestamp']), (value['timestamp'], value['is_failure'], value)
+        except KeyError:
+            yield (key, 'NO_TIMESTAMP'), ('NO_TIMESTAMP', value['is_failure'], value)
 
 def runner(job):
     job.additer(TimestampMapper)
